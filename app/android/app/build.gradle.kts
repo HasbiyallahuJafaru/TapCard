@@ -32,7 +32,7 @@ android {
         applicationId = "com.tapcard.tapcard"
         // HCE requires API 19+; 23 covers ~99% of active Android devices (2026) and
         // is the standard minimum for modern Flutter apps.
-        minSdk = 23
+        minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
