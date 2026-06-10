@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties and fill in real values.
+# NEVER commit key.properties — it contains secrets.
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=tapcard
+storeFile=../tapcard-release.jks

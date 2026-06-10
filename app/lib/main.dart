@@ -13,6 +13,7 @@ import 'core/colours.dart';
 import 'core/providers/arm_state_provider.dart';
 import 'core/providers/nfc_channel_provider.dart';
 import 'core/router.dart';
+import 'platform/widget_channel.dart';
 import 'data/models/contact_card.dart';
 import 'data/repositories/card_repository.dart';
 
@@ -56,6 +57,8 @@ class _TapCardAppState extends ConsumerState<TapCardApp> {
     ref.read(nfcChannelProvider).setTapSuccessHandler(() {
       ref.read(armStateProvider.notifier).triggerSuccess();
     });
+    // Wire Kotlin → Flutter reverse channel: widget armed NFC directly.
+    registerWidgetChannelHandler(ref);
   }
 
   @override

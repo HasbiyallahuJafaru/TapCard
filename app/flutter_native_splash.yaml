@@ -1,0 +1,24 @@
+# TapCard — Native splash configuration.
+# Stage 1 of the two-stage splash (see .claude/UI_DIRECTION.md §Splash Screen).
+# After adding assets/splash/wordmark.svg, run:
+#   dart run flutter_native_splash:create
+#
+# Background matches AppColours.bgPrimary exactly — no flash of white on cold start.
+
+flutter_native_splash:
+  color: "#0E0E0E"
+
+  # Centred wordmark: white on dark. No logomark — the name IS the identity.
+  # Replace the .keep placeholder with the real SVG before running the generator.
+  image: assets/splash/wordmark.png
+
+  # Android 12+ requires a separate icon config (adaptive icon rules apply).
+  android_12:
+    color: "#0E0E0E"
+    image: assets/splash/wordmark.png
+    icon_background_color: "#0E0E0E"
+
+  # Fullscreen — hides status bar during native splash for a cleaner brand moment.
+  fullscreen: true
+
+  # web and iOS are not targets for this app; entries left absent intentionally.
