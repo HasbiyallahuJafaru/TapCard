@@ -1,0 +1,11 @@
+# Netlify configuration for TapCard web decoder page.
+# The redirect rule ensures all paths return index.html so that
+# deep-links with URL fragments (https://domain/#fragment) are served correctly.
+
+[build]
+  publish = "."
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,0 +1,59 @@
+# TapCard — Flutter application manifest.
+# Before adding any dependency, always fetch the latest version from pub.dev.
+# Versions pinned 2026-06-09 — check for updates before next major session.
+
+name: tapcard
+description: Share your contact with a tap. No app required on the other side.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.4
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Local storage — fast, type-safe, zero setup
+  hive: ^2.2.3                   # pinned 2026-06-09
+  hive_flutter: ^1.1.0           # pinned 2026-06-09
+
+  # State management — providers written manually (no codegen) to avoid
+  # source_gen / build / meta version conflicts between codegen packages
+  flutter_riverpod: ^2.6.1       # pinned 2026-06-09
+
+  # Routing — declarative, deep-link-ready
+  go_router: ^17.3.0             # pinned 2026-06-09
+
+  # QR code display
+  qr_flutter: ^4.1.0             # pinned 2026-06-09
+
+  # Typography — Syne, DM Sans, DM Mono
+  google_fonts: ^8.1.0           # pinned 2026-06-09
+
+  # Animation — composable, clean sequencing
+  flutter_animate: ^4.5.2        # pinned 2026-06-09
+
+  # Native splash screen (Stage 1 — OS-level, zero Flutter overhead)
+  flutter_native_splash: ^2.3.13 # pinned 2026-06-09 — capped at 2.3.x; 2.4.x needs meta ^1.18.0 which conflicts with this SDK's flutter_test
+
+  # AdMob — native ads only (post-share success screen). See MONETIZATION.md.
+  google_mobile_ads: ^5.1.0      # pinned 2026-06-10
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # No code generation packages — all codegen packages (hive_generator,
+  # riverpod_generator, build_runner) conflict via source_gen / build / meta
+  # version chains on this Flutter SDK. Hive adapters and Riverpod providers
+  # are written manually.
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/splash/
+    - assets/icons/

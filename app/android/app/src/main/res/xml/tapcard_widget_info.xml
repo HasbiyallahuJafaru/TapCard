@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AppWidgetProviderInfo for TapCardWidget.
+    Size: 2×1 home widget (medium). Min size: 110×50dp (standard 2×1 cell).
+    Update period is set to 0 — the widget self-refreshes via AlarmManager
+    when the arm window expires. No battery-wasteful periodic polling.
+-->
+<appwidget-provider
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:minWidth="110dp"
+    android:minHeight="50dp"
+    android:targetCellWidth="2"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:initialLayout="@layout/tapcard_widget_initial_layout"
+    android:resizeMode="horizontal"
+    android:widgetCategory="home_screen"
+    android:description="@string/widget_description" />

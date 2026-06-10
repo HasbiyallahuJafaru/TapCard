@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<!--
+  TapCard web decoder page.
+  Reads a base64url-encoded vCard 3.0 string from the URL fragment,
+  parses it, and renders a contact card with a "Save Contact" download button.
+  No frameworks, no external resources, no tracking. Vanilla HTML/CSS/JS only.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>TapCard — Contact</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0E0E0E;
+      color: #F2F0EC;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+
+    /* ── Card ─────────────────────────────────────────── */
+    .card {
+      background: #161616;
+      border-radius: 20px;
+      max-width: 380px;
+      width: 100%;
+      padding: 28px 24px 24px;
+    }
+
+    /* ── Name ─────────────────────────────────────────── */
+    .name {
+      font-size: 28px;
+      font-weight: 600;
+      color: #F2F0EC;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      word-break: break-word;
+    }
+
+    /* ── Tagline (job title @ company) ───────────────── */
+    .tagline {
+      font-size: 14px;
+      color: #9E9B96;
+      margin-top: 6px;
+      word-break: break-word;
+    }
+
+    /* ── Divider ──────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: #232320;
+      margin: 20px 0;
+    }
+
+    /* ── Detail rows ──────────────────────────────────── */
+    .detail {
+      font-size: 15px;
+      color: #9E9B96;
+      line-height: 1.55;
+      word-break: break-all;
+    }
+
+    .detail + .detail {
+      margin-top: 10px;
+    }
+
+    .detail.mono {
+      font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    }
+
+    .note {
+      font-size: 13px;
+      color: #5C5A57;
+      font-style: italic;
+      margin-top: 10px;
+      word-break: break-word;
+    }
+
+    /* ── Save button ──────────────────────────────────── */
+    .btn-save {
+      display: block;
+      width: 100%;
+      height: 52px;
+      margin-top: 20px;
+      background: #1F1F1F;
+      color: #F2F0EC;
+      font-size: 14px;
+      font-family: inherit;
+      font-weight: 500;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      text-align: center;
+      line-height: 52px;
+      text-decoration: none;
+      transition: background 120ms ease;
+    }
+
+    .btn-save:hover { background: #2A2A2A; }
+    .btn-save:active { background: #333; }
+
+    /* ── Error state ──────────────────────────────────── */
+    .error {
+      background: #161616;
+      border-radius: 20px;
+      max-width: 380px;
+      width: 100%;
+      padding: 40px 24px;
+      text-align: center;
+    }
+
+    .error p {
+      font-size: 15px;
+      color: #9E9B96;
+      line-height: 1.6;
+    }
+
+    .error a {
+      display: inline-block;
+      margin-top: 20px;
+      font-size: 14px;
+      color: #9E9B96;
+      text-decoration: underline;
+    }
+
+    /* ── Footer ───────────────────────────────────────── */
+    footer {
+      margin-top: 20px;
+      font-size: 11px;
+      color: #5C5A57;
+      text-align: center;
+    }
+
+    footer a {
+      color: #9E9B96;
+      text-decoration: underline;
+    }
+
+    /* ── Hidden utility ───────────────────────────────── */
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <div id="card-container" class="card hidden" role="main" aria-label="Contact card">
+    <p id="name" class="name"></p>
+    <p id="tagline" class="tagline hidden"></p>
+    <div class="divider"></div>
+    <p id="phone" class="detail mono hidden"></p>
+    <p id="email" class="detail hidden"></p>
+    <p id="note" class="note hidden"></p>
+    <div class="divider"></div>
+    <a id="btn-save" class="btn-save" role="button" aria-label="Save contact to device">
+      Save Contact
+    </a>
+  </div>
+
+  <div id="error-container" class="error hidden" role="alert" aria-live="assertive">
+    <p>This contact card link is invalid or has expired.</p>
+    <a href="https://tapcard.app">Get TapCard →</a>
+  </div>
+
+  <footer id="footer" class="hidden">
+    Powered by TapCard ·
+    <a href="https://tapcard.app" aria-label="Get TapCard — share your contact by tapping phones">Get yours →</a>
+  </footer>
+
+  <script>
+    'use strict';
+
+    /**
+     * Decodes a base64url string (RFC 4648 §5 — URL-safe alphabet, no padding)
+     * into a Unicode string.
+     *
+     * @param {string} str - The base64url-encoded input.
+     * @returns {string} The decoded string.
+     * @throws {Error} If atob or decodeURIComponent fails (corrupt input).
+     */
+    function base64urlDecode(str) {
+      // Convert URL-safe alphabet back to standard base64.
+      const base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      // Re-add stripped padding so atob can parse it.
+      const padded = base64 + '=='.slice(0, (4 - base64.length % 4) % 4);
+      // atob gives us a byte string; percent-encode each byte then decodeURIComponent
+      // to correctly handle multi-byte UTF-8 sequences.
+      return decodeURIComponent(
+        atob(padded)
+          .split('')
+          .map(function(c) { return '%' + c.charCodeAt(0).toString(16).padStart(2, '0'); })
+          .join('')
+      );
+    }
+
+    /**
+     * Unescapes vCard 3.0 field values.
+     * Reverses the escape sequence: \\ → \   \; → ;   \, → ,   \n → newline
+     *
+     * @param {string} value - Raw vCard field value.
+     * @returns {string} Unescaped value.
+     */
+    function unescapeVCardValue(value) {
+      // Process escape sequences in one pass using replace with a function.
+      // The order here is safe because we replace the full two-char sequences.
+      return value
+        .replace(/\\n/gi, '\n')   // literal \n → real newline
+        .replace(/\\,/g, ',')     // \, → ,
+        .replace(/\\;/g, ';')     // \; → ;
+        .replace(/\\\\/g, '\\');  // \\ → \  (must be last)
+    }
+
+    /**
+     * Parses a vCard 3.0 string into a plain object with named fields.
+     * Lines are split on CRLF first (then LF fallback) before field values are
+     * unescaped — doing it the other way around is the most common parser bug.
+     *
+     * @param {string} vcard - Raw vCard 3.0 string.
+     * @returns {{ fn: string, tel: string, email: string, org: string, title: string, note: string }}
+     */
+    function parseVCard(vcard) {
+      const result = { fn: '', tel: '', email: '', org: '', title: '', note: '' };
+
+      // Split on CRLF or bare LF, strip empty lines.
+      const lines = vcard.split(/\r\n|\n/).filter(function(l) { return l.trim().length > 0; });
+
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const colonIdx = line.indexOf(':');
+        if (colonIdx === -1) continue;
+
+        const keyPart = line.slice(0, colonIdx).toUpperCase(); // e.g. "TEL;TYPE=CELL"
+        const rawValue = line.slice(colonIdx + 1);
+        const value = unescapeVCardValue(rawValue);
+
+        if (keyPart === 'FN') {
+          result.fn = value;
+        } else if (keyPart.startsWith('TEL') && result.tel === '') {
+          // Accept TEL, TEL;TYPE=CELL, TEL;TYPE=WORK etc. — use first found.
+          result.tel = value;
+        } else if (keyPart === 'EMAIL') {
+          result.email = value;
+        } else if (keyPart === 'ORG') {
+          result.org = value;
+        } else if (keyPart === 'TITLE') {
+          result.title = value;
+        } else if (keyPart === 'NOTE') {
+          result.note = value;
+        }
+      }
+
+      return result;
+    }
+
+    /**
+     * Rebuilds a minimal vCard 3.0 string from a parsed contact object.
+     * Used to generate the .vcf blob for download.
+     *
+     * @param {{ fn: string, tel: string, email: string, org: string, title: string, note: string }} contact
+     * @returns {string} vCard 3.0 string with CRLF line endings.
+     */
+    function buildVCard(contact) {
+      const lines = ['BEGIN:VCARD', 'VERSION:3.0'];
+
+      /**
+       * Escapes a vCard field value per the vCard 3.0 spec.
+       * Escape order: backslash first, then semicolons, then commas, then newlines.
+       *
+       * @param {string} val
+       * @returns {string}
+       */
+      function escapeVal(val) {
+        return val
+          .replace(/\\/g, '\\\\')
+          .replace(/;/g, '\\;')
+          .replace(/,/g, '\\,')
+          .replace(/\n/g, '\\n');
+      }
+
+      lines.push('FN:' + escapeVal(contact.fn));
+      if (contact.org)   lines.push('ORG:'   + escapeVal(contact.org));
+      if (contact.title) lines.push('TITLE:' + escapeVal(contact.title));
+      if (contact.tel)   lines.push('TEL;TYPE=CELL:' + escapeVal(contact.tel));
+      if (contact.email) lines.push('EMAIL:' + escapeVal(contact.email));
+      if (contact.note)  lines.push('NOTE:'  + escapeVal(contact.note));
+      lines.push('END:VCARD');
+
+      return lines.join('\r\n') + '\r\n';
+    }
+
+    /**
+     * Shows the error state and hides the card.
+     */
+    function showError() {
+      document.getElementById('error-container').classList.remove('hidden');
+      document.getElementById('footer').classList.remove('hidden');
+    }
+
+    /**
+     * Sets text content on an element and unhides it, or hides it if the
+     * value is empty.
+     *
+     * @param {string} id - Element ID.
+     * @param {string} value - Text to display.
+     */
+    function setField(id, value) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (value) {
+        el.textContent = value;
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    }
+
+    /**
+     * Main entry point. Reads the URL fragment, decodes, parses, and renders
+     * the contact card. Shows the error state on any failure.
+     */
+    function main() {
+      const fragment = window.location.hash.slice(1); // strip leading '#'
+
+      if (!fragment) {
+        showError();
+        return;
+      }
+
+      let vCardString;
+      try {
+        vCardString = base64urlDecode(fragment);
+      } catch (e) {
+        // Corrupt base64 data — show friendly error, not a JS exception.
+        showError();
+        return;
+      }
+
+      const contact = parseVCard(vCardString);
+
+      // FN is the only required field — if missing the card is unusable.
+      if (!contact.fn) {
+        showError();
+        return;
+      }
+
+      // Render name.
+      setField('name', contact.fn);
+
+      // Render optional tagline: "Job Title @ Company" or just one if only one present.
+      let tagline = '';
+      if (contact.title && contact.org) {
+        tagline = contact.title + ' @ ' + contact.org;
+      } else if (contact.title) {
+        tagline = contact.title;
+      } else if (contact.org) {
+        tagline = contact.org;
+      }
+      setField('tagline', tagline);
+
+      // Render detail rows.
+      setField('phone', contact.tel);
+      setField('email', contact.email);
+      setField('note', contact.note);
+
+      // Wire up the Save Contact button as a .vcf download.
+      // iOS Safari requires text/x-vcard MIME type to trigger a download
+      // rather than opening inline; Android Chrome accepts both.
+      const vCardBlob = new Blob([buildVCard(contact)], { type: 'text/x-vcard;charset=utf-8' });
+      const blobUrl = URL.createObjectURL(vCardBlob);
+      const btnSave = document.getElementById('btn-save');
+      btnSave.href = blobUrl;
+      btnSave.setAttribute('download', 'contact.vcf');
+
+      // Revoke the object URL after click to free memory.
+      btnSave.addEventListener('click', function() {
+        setTimeout(function() { URL.revokeObjectURL(blobUrl); }, 1000);
+      });
+
+      // Show card and footer.
+      document.getElementById('card-container').classList.remove('hidden');
+      document.getElementById('footer').classList.remove('hidden');
+    }
+
+    main();
+  </script>
+
+</body>
+</html>
