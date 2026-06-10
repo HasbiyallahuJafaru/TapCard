@@ -39,14 +39,15 @@ tapcard/
 │   ├── lib/
 │   │   ├── core/               Design tokens, typography, colours, router, utilities
 │   │   ├── data/               ContactCard model (Hive), CardRepository
-│   │   ├── features/           Splash, Onboarding, Card Editor, Share screen
-│   │   └── platform/           nfc_channel.dart — typed MethodChannel wrapper
+│   │   ├── features/           Splash, Onboarding, Card Editor, Share screen, QR panel
+│   │   └── platform/           nfc_channel.dart + widget_channel.dart — MethodChannel wrappers
 │   ├── android/
 │   │   └── app/src/main/kotlin/com/tapcard/tapcard/
 │   │       ├── MainActivity.kt
 │   │       ├── NdefApduProcessor.kt   APDU state machine (pure Kotlin, testable)
 │   │       ├── NdefHostApduService.kt Android HCE service wrapper
-│   │       └── NfcPlugin.kt           tapcard/nfc MethodChannel handler
+│   │       ├── NfcPlugin.kt           tapcard/nfc MethodChannel handler
+│   │       └── widget/                Glance home-screen widget (idle + armed states)
 │   └── test/core/              37 unit tests — vCard builder + URL codec
 └── web/                        Static decoder page (Netlify) — Phase 2
     ├── index.html
@@ -179,9 +180,10 @@ Free app. No paywall. No subscriptions.
 | Phase | Status | What |
 |---|---|---|
 | Phase 1 — Core plumbing | ✅ Complete | Flutter scaffold, data layer, Kotlin HCE, platform channel |
-| Phase 2 — Web decoder | 🔲 Next | `web/index.html`, Netlify deploy, end-to-end tap test |
-| Phase 3 — App UI | 🔲 Pending | All 4 screens built and animated |
-| Phase 4 — Widget + hardening | 🔲 Pending | Glance widget, AdMob integration, OEM test matrix |
+| Phase 2 — Web decoder | ✅ Complete | `web/index.html`, Netlify deploy, end-to-end tap test |
+| Phase 3 — App UI | ✅ Complete | Splash, Onboarding, Card Editor, Share screen, QR panel |
+| Phase 4 — Widget + hardening | ✅ Complete | Glance widget, AdMob native ad, NDEF success detection |
+| Phase 5 — Release | 🔲 Next | Native splash asset, release signing, OEM test matrix, Play Store listing |
 
 ---
 
