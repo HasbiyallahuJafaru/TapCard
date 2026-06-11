@@ -14,11 +14,7 @@ import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import com.tapcard.tapcard.widget.TapCardWidget
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import com.tapcard.tapcard.widget.TapCardWidgetReceiver
 
 class NdefHostApduService : HostApduService() {
 
@@ -78,19 +74,20 @@ class NdefHostApduService : HostApduService() {
             payloadProvider = SharedPrefsPayloadProvider(prefs),
             onNdefServed = {
                 if (BuildConfig.DEBUG) Log.d(TAG, "NDEF body served — disarming and refreshing widget")
-                // Disarm immediately so the widget returns to idle
+                // Disarm immediately so the widget returns to idle.
                 getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
                     .putBoolean(KEY_IS_ARMED, false)
                     .putLong(KEY_EXPIRES_AT_MS, 0L)
-                    .apply()
-                // Refresh the home-screen widget
-                CoroutineScope(Dispatchers.Main).launch {
-                    val manager = GlanceAppWidgetManager(this@NdefHostApduService)
-                    manager.getGlanceIds(TapCardWidget::class.java).forEach { id ->
-                        TapCardWidget().update(this@NdefHostApduService, id)
+                    .commit()
+                // Refresh widget via the same broadcast path as the expiry alarm.
+                // Using a broadcast is more reliable than a raw coroutine from a Service
+                // because the OS delivers it even if the service is torn down immediately after.
+                sendBroadcast(
+                    Intent(this@NdefHostApduService, TapCardWidgetReceiver::class.java).apply {
+                        action = "com.tapcard.tapcard.WIDGET_REFRESH"
                     }
-                }
-                // Notify Flutter app if in foreground
+                )
+                // Notify Flutter app if in foreground.
                 LocalBroadcastManager.getInstance(this)
                     .sendBroadcast(Intent(ACTION_NFC_TAPPED))
             },

@@ -121,7 +121,9 @@ class TapCardWidget : GlanceAppWidget() {
     @Composable
     private fun ArmedContent() {
         Column(
-            modifier = GlanceModifier.fillMaxWidth(),
+            modifier = GlanceModifier
+                .fillMaxWidth()
+                .clickable(actionRunCallback<DisarmNfcAction>()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(

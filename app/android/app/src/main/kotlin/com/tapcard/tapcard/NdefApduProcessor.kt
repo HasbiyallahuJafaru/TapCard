@@ -151,7 +151,10 @@ class NdefApduProcessor(
 
     private fun handleReadBinary(apdu: ByteArray, p1: Byte, p2: Byte): ByteArray {
         val offset = ((p1.toInt() and 0xFF) shl 8) or (p2.toInt() and 0xFF)
-        val le     = if (apdu.size > 4) apdu[4].toInt() and 0xFF else 0
+        // ISO 7816-4 §12.1: Le=0x00 in short form means Ne=256 ("give me up to 256 bytes").
+        // Treating it as 0 would return empty data — fatal for readers that use Le=0 to mean "all".
+        val leRaw  = if (apdu.size > 4) apdu[4].toInt() and 0xFF else 0
+        val le     = if (leRaw == 0) 256 else leRaw
 
         return when (state) {
             State.SELECTED_CC   -> buildCcResponse(offset, le)
@@ -172,7 +175,7 @@ class NdefApduProcessor(
         val ccFile = byteArrayOf(
             0x00, 0x0F,                                      // CC length = 15
             0x20,                                            // mapping version 2.0
-            0x00, 0x7F,                                      // max R-APDU = 127
+            0x00, 0xFF.toByte(),                             // max R-APDU = 255 (fits any normal vCard in one read)
             0x00, 0x7F,                                      // max C-APDU = 127
             0x04,                                            // NDEF file control TLV tag
             0x06,                                            // NDEF file control TLV length
@@ -204,9 +207,11 @@ class NdefApduProcessor(
 
         val response = sliceResponse(ndefFile, offset, le)
 
-        // Signal success after the body read (offset ≥ 2 = past the 2-byte length header).
-        // Guard with ndefBodyServed so we fire exactly once per field session.
-        if (offset >= 2 && !ndefBodyServed) {
+        // Fire onNdefServed only when the response covers the LAST byte of the NDEF file.
+        // Firing on the first body read (old behaviour) was wrong for vCards that require
+        // multiple READ BINARY commands: the disarm would cause subsequent reads to fail.
+        val servedUpTo = minOf(offset + le, ndefFile.size)
+        if (!ndefBodyServed && offset >= 2 && servedUpTo >= ndefFile.size) {
             ndefBodyServed = true
             onNdefServed?.invoke()
         }
@@ -224,7 +229,9 @@ class NdefApduProcessor(
      * @return Raw NDEF message bytes
      */
     internal fun buildNdefMessage(vCard: String): ByteArray {
-        val typeBytes    = "text/x-vcard".toByteArray(Charsets.US_ASCII)
+        // "text/vcard" (no x- prefix) is required: iOS 14.5+ only triggers "Add to Contacts"
+        // for the standard MIME type. "text/x-vcard" is silently ignored by Apple's NFC stack.
+        val typeBytes    = "text/vcard".toByteArray(Charsets.US_ASCII)
         val payloadBytes = vCard.toByteArray(Charsets.UTF_8)
         val typeLen      = typeBytes.size        // 10
         val payloadLen   = payloadBytes.size
