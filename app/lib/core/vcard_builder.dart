@@ -46,6 +46,13 @@ abstract final class VCardBuilder {
     buffer.write('VERSION:3.0\r\n');
     buffer.write('FN:${_escape(name)}\r\n');
 
+    // N: is required by iOS — without it the contact is silently dropped.
+    // Split on last space for given/family; fall back to name as family name only.
+    final spaceIdx = name.lastIndexOf(' ');
+    final familyName = spaceIdx >= 0 ? _escape(name.substring(spaceIdx + 1)) : _escape(name);
+    final givenName  = spaceIdx >= 0 ? _escape(name.substring(0, spaceIdx))  : '';
+    buffer.write('N:$familyName;$givenName;;;\r\n');
+
     // Optional fields — include only when non-null and non-empty after trimming.
     final company = card.company?.trim();
     if (company != null && company.isNotEmpty) {

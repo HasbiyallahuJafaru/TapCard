@@ -21,6 +21,7 @@ void main() {
         'BEGIN:VCARD\r\n'
         'VERSION:3.0\r\n'
         'FN:Alice Smith\r\n'
+        'N:Smith;Alice;;;\r\n'
         'TEL;TYPE=CELL:+2341234567890\r\n'
         'END:VCARD\r\n',
       ));
@@ -43,6 +44,7 @@ void main() {
         'BEGIN:VCARD\r\n'
         'VERSION:3.0\r\n'
         'FN:Hasbiyallahu Jafaru\r\n'
+        'N:Jafaru;Hasbiyallahu;;;\r\n'
         'ORG:TapCard\r\n'
         'TITLE:Founder\r\n'
         'TEL;TYPE=CELL:+234XXXXXXXXXX\r\n'
@@ -165,15 +167,18 @@ void main() {
       );
       final vCard = VCardBuilder.build(card);
       expect(vCard.contains('FN:محمد علي\r\n'), isTrue);
+      expect(vCard.contains('N:علي;محمد;;;\r\n'), isTrue);
     });
 
-    test('unicode name — Chinese', () {
+    test('unicode name — Chinese single word', () {
       final card = ContactCard(
         fullName: '张伟',
         cellPhone: '+8613800000000',
       );
       final vCard = VCardBuilder.build(card);
       expect(vCard.contains('FN:张伟\r\n'), isTrue);
+      // No space in name — full name goes as family name
+      expect(vCard.contains('N:张伟;;;;\r\n'), isTrue);
     });
   });
 

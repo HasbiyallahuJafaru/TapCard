@@ -224,7 +224,7 @@ class NdefApduProcessor(
      * @return Raw NDEF message bytes
      */
     internal fun buildNdefMessage(vCard: String): ByteArray {
-        val typeBytes    = "text/vcard".toByteArray(Charsets.US_ASCII)
+        val typeBytes    = "text/x-vcard".toByteArray(Charsets.US_ASCII)
         val payloadBytes = vCard.toByteArray(Charsets.UTF_8)
         val typeLen      = typeBytes.size        // 10
         val payloadLen   = payloadBytes.size
