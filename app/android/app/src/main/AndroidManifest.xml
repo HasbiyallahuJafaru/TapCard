@@ -4,6 +4,13 @@
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-permission android:name="android.permission.NFC" />
 
+    <!-- Required for AdMob to load ads -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- AdMob advertising ID access on Android 13+ (API 33+) -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+
     <application
         android:label="tapcard"
         android:name="${applicationName}"
