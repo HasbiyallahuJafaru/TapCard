@@ -15,14 +15,12 @@ import '../../core/colours.dart';
 import '../../core/constants.dart';
 import '../../core/tokens.dart';
 import '../../core/typography.dart';
-import '../../core/url_codec.dart';
 import '../../core/vcard_builder.dart';
 import '../../core/widgets/pressable_widget.dart';
 import '../../core/providers/card_repository_provider.dart';
 import '../../core/providers/arm_state_provider.dart';
 import 'native_ad_card.dart';
 import 'nfc_ring_painter.dart';
-import 'qr_panel.dart';
 
 /// The core share screen.
 ///
@@ -43,32 +41,22 @@ class ShareScreen extends ConsumerWidget {
       return const Scaffold(backgroundColor: AppColours.bgPrimary);
     }
 
-    // Build vCard for NFC; also encode URL for QR code.
     String? vCard;
-    String? shareUrl;
-    String? urlError;
     try {
       vCard = VCardBuilder.build(card);
-      final result = UrlCodec.encode(vCard);
-      if (result is EncodeSuccess) {
-        shareUrl = result.url;
-      }
-      // URL overflow doesn't block NFC — vCard is sent directly.
     } catch (e) {
-      urlError = 'Could not build contact card. Edit your card and try again.';
+      // ignore — null vCard shows an error in the content widget
     }
 
-    return _ShareScreenContent(vCard: vCard, shareUrl: shareUrl, urlError: urlError);
+    return _ShareScreenContent(vCard: vCard);
   }
 }
 
 /// Stateful inner widget — holds animation and arm-state interactions.
 class _ShareScreenContent extends ConsumerStatefulWidget {
-  const _ShareScreenContent({this.vCard, this.shareUrl, this.urlError});
+  const _ShareScreenContent({this.vCard});
 
   final String? vCard;
-  final String? shareUrl;
-  final String? urlError;
 
   @override
   ConsumerState<_ShareScreenContent> createState() => _ShareScreenContentState();
@@ -263,20 +251,6 @@ class _ShareScreenContentState extends ConsumerState<_ShareScreenContent>
                     ),
                   ],
 
-                  // Error message (URL too long or no card).
-                  if (widget.urlError != null) ...[
-                    const SizedBox(height: AppTokens.md),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppTokens.lg),
-                      child: Text(
-                        widget.urlError!,
-                        style: AppTypography.body(size: 13)
-                            .copyWith(color: AppColours.error),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ],
-
                   if (armState.errorMessage != null) ...[
                     const SizedBox(height: AppTokens.md),
                     Padding(
@@ -293,29 +267,6 @@ class _ShareScreenContentState extends ConsumerState<_ShareScreenContent>
               ),
             ),
 
-            // ── QR toggle ────────────────────────────────────────────────────
-            if (widget.shareUrl != null)
-              Positioned(
-                bottom: AppTokens.xxl,
-                left: 0,
-                right: 0,
-                child: Center(
-                  child: PressableWidget(
-                    onTap: () => showQrPanel(
-                      context,
-                      shareUrl: widget.shareUrl!,
-                    ),
-                    child: Text(
-                      'Show QR Code',
-                      style: AppTypography.body(size: 14).copyWith(
-                        color: AppColours.textSecondary,
-                        decoration: TextDecoration.underline,
-                        decorationColor: AppColours.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),

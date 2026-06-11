@@ -42,11 +42,12 @@ import com.tapcard.tapcard.NdefHostApduService
 
 // ─── Design tokens (approximated from AppColours for Glance) ────────────────
 
-private val BgSecondary    = Color(0xFF161616)
-private val TextPrimary    = Color(0xFFF2F0EC)
+private val BgIdle         = Color(0xFF161616)
+private val BgArmed        = Color(0xFF0B2110)
 private val TextSecondary  = Color(0xFF9E9B96)
 private val TextTertiary   = Color(0xFF5C5A57)
-private val NfcArmed       = Color(0xFFF2F0EC)
+private val NfcGreen       = Color(0xFF4CAF50)
+private val NfcGreenDim    = Color(0xFF2E7D32)
 
 class TapCardWidget : GlanceAppWidget() {
 
@@ -64,13 +65,13 @@ class TapCardWidget : GlanceAppWidget() {
         Box(
             modifier = GlanceModifier
                 .fillMaxSize()
-                .background(BgSecondary)
+                .background(if (armState is ArmState.Armed) BgArmed else BgIdle)
                 .padding(12.dp),
             contentAlignment = Alignment.Center,
         ) {
             when (armState) {
                 is ArmState.Idle  -> IdleContent()
-                is ArmState.Armed -> ArmedContent(armState.remainingSec)
+                is ArmState.Armed -> ArmedContent()
             }
         }
     }
@@ -118,25 +119,25 @@ class TapCardWidget : GlanceAppWidget() {
     }
 
     @Composable
-    private fun ArmedContent(remainingSec: Int) {
+    private fun ArmedContent() {
         Column(
             modifier = GlanceModifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text(
-                text = "$remainingSec",
+                text = "((·))",
                 style = TextStyle(
-                    color = androidx.glance.unit.ColorProvider(NfcArmed),
-                    fontSize = 32.sp,
+                    color = androidx.glance.unit.ColorProvider(NfcGreen),
+                    fontSize = 22.sp,
                     fontWeight = FontWeight.Normal,
                     fontFamily = FontFamily.Monospace,
                 ),
             )
-            Spacer(GlanceModifier.height(4.dp))
+            Spacer(GlanceModifier.height(6.dp))
             Text(
                 text = "READY",
                 style = TextStyle(
-                    color = androidx.glance.unit.ColorProvider(TextPrimary),
+                    color = androidx.glance.unit.ColorProvider(NfcGreenDim),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     fontFamily = FontFamily.SansSerif,

@@ -14,6 +14,10 @@ import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.tapcard.tapcard.widget.TapCardWidget
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class NdefHostApduService : HostApduService() {
 
@@ -72,7 +76,17 @@ class NdefHostApduService : HostApduService() {
         val proc = processor ?: NdefApduProcessor(
             payloadProvider = SharedPrefsPayloadProvider(prefs),
             onNdefServed = {
-                if (BuildConfig.DEBUG) Log.d(TAG, "NDEF body served — broadcasting tap success")
+                if (BuildConfig.DEBUG) Log.d(TAG, "NDEF body served — disarming and refreshing widget")
+                // Disarm immediately so the widget returns to idle
+                getSharedPreferences(PREFS_NAME, MODE_PRIVATE).edit()
+                    .putBoolean(KEY_IS_ARMED, false)
+                    .putLong(KEY_EXPIRES_AT_MS, 0L)
+                    .apply()
+                // Refresh the home-screen widget
+                CoroutineScope(Dispatchers.Main).launch {
+                    TapCardWidget().updateAll(this@NdefHostApduService)
+                }
+                // Notify Flutter app if in foreground
                 LocalBroadcastManager.getInstance(this)
                     .sendBroadcast(Intent(ACTION_NFC_TAPPED))
             },
