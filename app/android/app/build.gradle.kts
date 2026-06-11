@@ -28,6 +28,10 @@ android {
         jvmTarget = JavaVersion.VERSION_17.toString()
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         applicationId = "com.tapcard.tapcard"
         // HCE requires API 19+; 23 covers ~99% of active Android devices (2026) and

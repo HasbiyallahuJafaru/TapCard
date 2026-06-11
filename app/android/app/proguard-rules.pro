@@ -6,6 +6,11 @@
 -keep class io.flutter.** { *; }
 -keep class io.flutter.plugins.** { *; }
 
+# Play Core — Flutter references these for deferred components; we don't use them.
+# Suppress missing-class errors from R8 rather than adding the full Play Core dep.
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
+
 # Hive — keep generated adapter names
 -keep class com.tapcard.** { *; }
 
