@@ -9,8 +9,8 @@ package com.tapcard.tapcard
 
 /** Provides the current payload URL and arm validity to the processor. */
 interface NdefPayloadProvider {
-    /** Returns the NDEF URL if armed and not expired; null otherwise. */
-    fun getNdefUrlIfArmed(): String?
+    /** Returns the NDEF vCard payload if armed and not expired; null otherwise. */
+    fun getNdefPayloadIfArmed(): String?
 }
 
 /**
@@ -106,7 +106,7 @@ class NdefApduProcessor(
      */
     private fun handleSelectAid(apdu: ByteArray): ByteArray {
         // Must check arm state before accepting the AID selection
-        if (payloadProvider.getNdefUrlIfArmed() == null) {
+        if (payloadProvider.getNdefPayloadIfArmed() == null) {
             state = State.IDLE
             return SW_SECURITY_STATUS_NOT_SATISFIED
         }
@@ -165,8 +165,8 @@ class NdefApduProcessor(
      * Max NDEF size field is dynamically calculated from actual payload length.
      */
     private fun buildCcResponse(offset: Int, le: Int): ByteArray {
-        val url         = payloadProvider.getNdefUrlIfArmed() ?: return SW_SECURITY_STATUS_NOT_SATISFIED
-        val ndefMessage = buildNdefMessage(url)
+        val vCard       = payloadProvider.getNdefPayloadIfArmed() ?: return SW_SECURITY_STATUS_NOT_SATISFIED
+        val ndefMessage = buildNdefMessage(vCard)
         val maxNdefSize = ndefMessage.size + 2
 
         val ccFile = byteArrayOf(
@@ -193,8 +193,8 @@ class NdefApduProcessor(
      * signalling that the remote reader has received the full NDEF payload.
      */
     private fun buildNdefResponse(offset: Int, le: Int): ByteArray {
-        val url         = payloadProvider.getNdefUrlIfArmed() ?: return SW_SECURITY_STATUS_NOT_SATISFIED
-        val ndefMessage = buildNdefMessage(url)
+        val vCard       = payloadProvider.getNdefPayloadIfArmed() ?: return SW_SECURITY_STATUS_NOT_SATISFIED
+        val ndefMessage = buildNdefMessage(vCard)
         val ndefLen     = ndefMessage.size
 
         val ndefFile = byteArrayOf(
@@ -215,25 +215,45 @@ class NdefApduProcessor(
     }
 
     /**
-     * Builds a NFC Forum Well-Known URI NDEF record.
-     * URI identifier code 0x04 = "https://". SR bit set (payload ≤ 255 bytes).
+     * Builds an NDEF MIME record carrying a vCard 3.0 payload.
+     * TNF=0x02 (MIME), type="text/vcard", SR bit set when payload ≤ 255 bytes.
      *
-     * @param url Full URL starting with "https://"
-     * @return Raw NDEF message bytes (record header + type + payload)
+     * Phones receiving this record prompt "Add to Contacts" directly — no browser.
+     *
+     * @param vCard Raw vCard 3.0 string (UTF-8, CRLF line endings)
+     * @return Raw NDEF message bytes
      */
-    internal fun buildNdefMessage(url: String): ByteArray {
-        val urlBody      = url.removePrefix("https://")
-        val urlBytes     = urlBody.toByteArray(Charsets.UTF_8)
-        val payloadLen   = 1 + urlBytes.size // prefix code byte + URL bytes
+    internal fun buildNdefMessage(vCard: String): ByteArray {
+        val typeBytes    = "text/vcard".toByteArray(Charsets.US_ASCII)
+        val payloadBytes = vCard.toByteArray(Charsets.UTF_8)
+        val typeLen      = typeBytes.size        // 10
+        val payloadLen   = payloadBytes.size
 
-        // NDEF record header: MB=1 ME=1 CF=0 SR=1 IL=0 TNF=001 = 0xD1
-        return byteArrayOf(
-            0xD1.toByte(),           // header
-            0x01,                    // type length = 1
-            payloadLen.toByte(),     // payload length (SR format, 1 byte, max 255)
-            0x55,                    // type = "U" (URI)
-            0x04                     // URI prefix code: "https://"
-        ) + urlBytes
+        // Use SR (short record) bit when payload fits in one byte, else 4-byte length.
+        val useSR = payloadLen <= 255
+
+        // NDEF record header: MB=1 ME=1 CF=0 SR=? IL=0 TNF=010
+        // SR=1 → 0xD2, SR=0 → 0xC2
+        val header = if (useSR) 0xD2.toByte() else 0xC2.toByte()
+
+        val headerBytes = if (useSR) {
+            byteArrayOf(
+                header,
+                typeLen.toByte(),
+                payloadLen.toByte(),
+            )
+        } else {
+            byteArrayOf(
+                header,
+                typeLen.toByte(),
+                ((payloadLen shr 24) and 0xFF).toByte(),
+                ((payloadLen shr 16) and 0xFF).toByte(),
+                ((payloadLen shr 8)  and 0xFF).toByte(),
+                (payloadLen          and 0xFF).toByte(),
+            )
+        }
+
+        return headerBytes + typeBytes + payloadBytes
     }
 
     /**

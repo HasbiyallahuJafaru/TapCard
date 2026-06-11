@@ -38,13 +38,12 @@ class NdefHostApduService : HostApduService() {
         private val prefs: SharedPreferences
     ) : NdefPayloadProvider {
 
-        override fun getNdefUrlIfArmed(): String? {
+        override fun getNdefPayloadIfArmed(): String? {
             val isArmed   = prefs.getBoolean(KEY_IS_ARMED, false)
             val expiresAt = prefs.getLong(KEY_EXPIRES_AT_MS, 0L)
             val isValid   = isArmed && System.currentTimeMillis() < expiresAt
 
             if (!isValid) {
-                // Auto-disarm if the arm window has elapsed
                 if (isArmed) {
                     prefs.edit()
                         .putBoolean(KEY_IS_ARMED, false)

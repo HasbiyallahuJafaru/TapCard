@@ -43,29 +43,30 @@ class ShareScreen extends ConsumerWidget {
       return const Scaffold(backgroundColor: AppColours.bgPrimary);
     }
 
-    // Pre-compute the share URL once per build (card hasn't changed).
+    // Build vCard for NFC; also encode URL for QR code.
+    String? vCard;
     String? shareUrl;
     String? urlError;
     try {
-      final vCard = VCardBuilder.build(card);
+      vCard = VCardBuilder.build(card);
       final result = UrlCodec.encode(vCard);
       if (result is EncodeSuccess) {
         shareUrl = result.url;
-      } else {
-        urlError = 'Card too long to share via NFC. Shorten your note or job title.';
       }
+      // URL overflow doesn't block NFC — vCard is sent directly.
     } catch (e) {
-      urlError = 'Could not build share link. Edit your card and try again.';
+      urlError = 'Could not build contact card. Edit your card and try again.';
     }
 
-    return _ShareScreenContent(shareUrl: shareUrl, urlError: urlError);
+    return _ShareScreenContent(vCard: vCard, shareUrl: shareUrl, urlError: urlError);
   }
 }
 
 /// Stateful inner widget — holds animation and arm-state interactions.
 class _ShareScreenContent extends ConsumerStatefulWidget {
-  const _ShareScreenContent({this.shareUrl, this.urlError});
+  const _ShareScreenContent({this.vCard, this.shareUrl, this.urlError});
 
+  final String? vCard;
   final String? shareUrl;
   final String? urlError;
 
@@ -110,9 +111,9 @@ class _ShareScreenContentState extends ConsumerState<_ShareScreenContent>
       _radiusController.reverse();
       await ref.read(armStateProvider.notifier).disarm();
     } else if (armState.phase == TapSharePhase.idle) {
-      if (widget.shareUrl == null) return;
+      if (widget.vCard == null) return;
       _radiusController.forward();
-      await ref.read(armStateProvider.notifier).arm(widget.shareUrl!);
+      await ref.read(armStateProvider.notifier).arm(widget.vCard!);
     }
   }
 

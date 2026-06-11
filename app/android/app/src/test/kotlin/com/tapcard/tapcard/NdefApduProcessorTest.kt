@@ -17,19 +17,19 @@ class NdefApduProcessorTest {
     // Test double
     // ---------------------------------------------------------------------------
 
-    private class FakePayloadProvider(var url: String?) : NdefPayloadProvider {
-        override fun getNdefUrlIfArmed(): String? = url
+    private class FakePayloadProvider(var vCard: String?) : NdefPayloadProvider {
+        override fun getNdefPayloadIfArmed(): String? = vCard
     }
 
     private lateinit var armed: FakePayloadProvider
     private lateinit var processor: NdefApduProcessor
 
-    /** A stable test URL short enough for SR-format payload length byte. */
-    private val testUrl = "https://tapcard.app/#dGVzdA"
+    /** A minimal vCard 3.0 payload for testing. */
+    private val testVCard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test User\r\nTEL;TYPE=CELL:+1234567890\r\nEND:VCARD\r\n"
 
     @Before
     fun setUp() {
-        armed = FakePayloadProvider(testUrl)
+        armed = FakePayloadProvider(testVCard)
         processor = NdefApduProcessor(armed)
     }
 
@@ -128,11 +128,8 @@ class NdefApduProcessorTest {
         processor.process(selectCc)
         processor.process(selectNdef)
 
-        // First get the length
         val lengthResponse = processor.process(readNdefLength)
         val ndefLen = ((lengthResponse[0].toInt() and 0xFF) shl 8) or (lengthResponse[1].toInt() and 0xFF)
-
-        // Now read the body
         val bodyResponse = processor.process(readNdefBody(ndefLen))
 
         // Response: [ndefLen bytes] + SW = ndefLen + 2 bytes
@@ -140,21 +137,19 @@ class NdefApduProcessorTest {
         assertEquals(0x90.toByte(), bodyResponse[ndefLen])
         assertEquals(0x00.toByte(), bodyResponse[ndefLen + 1])
 
-        // NDEF header byte must be 0xD1 (MB=1 ME=1 CF=0 SR=1 IL=0 TNF=001)
-        assertEquals(0xD1.toByte(), bodyResponse[0])
+        // NDEF header byte must be 0xD2 (MB=1 ME=1 CF=0 SR=1 IL=0 TNF=010 = MIME)
+        assertEquals(0xD2.toByte(), bodyResponse[0])
 
-        // Type length = 0x01
-        assertEquals(0x01.toByte(), bodyResponse[1])
+        // Type length = 10 ("text/vcard")
+        assertEquals(10.toByte(), bodyResponse[1])
 
-        // Type = 0x55 ("U")
-        assertEquals(0x55.toByte(), bodyResponse[3])
-
-        // URI prefix code = 0x04 ("https://")
-        assertEquals(0x04.toByte(), bodyResponse[4])
+        // Type field = "text/vcard"
+        val typeBytes = bodyResponse.copyOfRange(3, 13)
+        assertEquals("text/vcard", String(typeBytes, Charsets.US_ASCII))
     }
 
     @Test
-    fun `full happy path NDEF body contains correct URL without https prefix`() {
+    fun `full happy path NDEF body contains correct vCard payload`() {
         processor.process(selectAid)
         processor.process(selectCc)
         processor.process(selectNdef)
@@ -163,11 +158,10 @@ class NdefApduProcessorTest {
         val ndefLen = ((lengthResponse[0].toInt() and 0xFF) shl 8) or (lengthResponse[1].toInt() and 0xFF)
         val bodyResponse = processor.process(readNdefBody(ndefLen))
 
-        // Payload bytes start at index 4 (after header, type-len, payload-len, type byte)
-        val urlBodyBytes = bodyResponse.copyOfRange(5, ndefLen)
-        val urlBody = String(urlBodyBytes, Charsets.UTF_8)
-        val expectedBody = testUrl.removePrefix("https://")
-        assertEquals(expectedBody, urlBody)
+        // Header(1) + typeLen(1) + payloadLen(1) + type(10) = offset 13 for payload start
+        val payloadBytes = bodyResponse.copyOfRange(13, ndefLen)
+        val payload = String(payloadBytes, Charsets.UTF_8)
+        assertEquals(testVCard, payload)
     }
 
     // ---------------------------------------------------------------------------
@@ -176,7 +170,7 @@ class NdefApduProcessorTest {
 
     @Test
     fun `SELECT AID returns 6982 when disarmed`() {
-        armed.url = null
+        armed.vCard = null
         val response = processor.process(selectAid)
         assertArrayEquals(NdefApduProcessor.SW_SECURITY_STATUS_NOT_SATISFIED, response)
     }
@@ -187,7 +181,7 @@ class NdefApduProcessorTest {
         processor.process(selectAid)
         processor.process(selectCc)
         // Simulate expiry by flipping the provider
-        armed.url = null
+        armed.vCard = null
         // New SELECT AID (e.g. reader tries again) — should be rejected
         processor.reset()
         val response = processor.process(selectAid)
@@ -260,31 +254,46 @@ class NdefApduProcessorTest {
     // ---------------------------------------------------------------------------
 
     @Test
-    fun `buildNdefMessage produces correct header bytes`() {
-        val ndefMessage = processor.buildNdefMessage("https://example.com/test")
-        // 0xD1: MB=1 ME=1 CF=0 SR=1 IL=0 TNF=001
-        assertEquals(0xD1.toByte(), ndefMessage[0])
-        assertEquals(0x01.toByte(), ndefMessage[1]) // type length
-        assertEquals(0x55.toByte(), ndefMessage[3]) // type = "U"
-        assertEquals(0x04.toByte(), ndefMessage[4]) // URI prefix "https://"
+    fun `buildNdefMessage produces correct MIME header bytes`() {
+        val vCard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nTEL;TYPE=CELL:+1\r\nEND:VCARD\r\n"
+        val ndefMessage = processor.buildNdefMessage(vCard)
+        // 0xD2: MB=1 ME=1 CF=0 SR=1 IL=0 TNF=010 (MIME)
+        assertEquals(0xD2.toByte(), ndefMessage[0])
+        assertEquals(10.toByte(), ndefMessage[1]) // type length = "text/vcard".length
+        val typeBytes = ndefMessage.copyOfRange(3, 13)
+        assertEquals("text/vcard", String(typeBytes, Charsets.US_ASCII))
     }
 
     @Test
-    fun `buildNdefMessage payload length matches URL body byte count`() {
-        val url = "https://tapcard.app/#abc"
-        val body = url.removePrefix("https://")
-        val ndefMessage = processor.buildNdefMessage(url)
+    fun `buildNdefMessage payload length matches vCard byte count`() {
+        val vCard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nTEL;TYPE=CELL:+1\r\nEND:VCARD\r\n"
+        val ndefMessage = processor.buildNdefMessage(vCard)
         val payloadLen = ndefMessage[2].toInt() and 0xFF
-        assertEquals(1 + body.toByteArray(Charsets.UTF_8).size, payloadLen) // 1 = prefix code byte
+        assertEquals(vCard.toByteArray(Charsets.UTF_8).size, payloadLen)
     }
 
     @Test
-    fun `buildNdefMessage handles Unicode URL body correctly`() {
-        val url = "https://tapcard.app/#مرحبا" // Arabic "مرحبا"
-        val body = url.removePrefix("https://")
-        val ndefMessage = processor.buildNdefMessage(url)
-        val payloadBytes = ndefMessage.copyOfRange(5, ndefMessage.size)
-        assertEquals(body, String(payloadBytes, Charsets.UTF_8))
+    fun `buildNdefMessage payload contains correct vCard bytes`() {
+        val vCard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nTEL;TYPE=CELL:+1\r\nEND:VCARD\r\n"
+        val ndefMessage = processor.buildNdefMessage(vCard)
+        // Header(1) + typeLen(1) + payloadLen(1) + type(10) = offset 13 for payload
+        val payloadBytes = ndefMessage.copyOfRange(13, ndefMessage.size)
+        assertEquals(vCard, String(payloadBytes, Charsets.UTF_8))
+    }
+
+    @Test
+    fun `buildNdefMessage uses long record format when payload exceeds 255 bytes`() {
+        val longVCard = "BEGIN:VCARD\r\nVERSION:3.0\r\nFN:Test\r\nTEL;TYPE=CELL:+1\r\n" +
+            "NOTE:${"x".repeat(300)}\r\nEND:VCARD\r\n"
+        val ndefMessage = processor.buildNdefMessage(longVCard)
+        // 0xC2: MB=1 ME=1 CF=0 SR=0 IL=0 TNF=010 (MIME, long record)
+        assertEquals(0xC2.toByte(), ndefMessage[0])
+        // 4-byte payload length at bytes [2..5]
+        val payloadLen = ((ndefMessage[2].toInt() and 0xFF) shl 24) or
+            ((ndefMessage[3].toInt() and 0xFF) shl 16) or
+            ((ndefMessage[4].toInt() and 0xFF) shl 8) or
+            (ndefMessage[5].toInt() and 0xFF)
+        assertEquals(longVCard.toByteArray(Charsets.UTF_8).size, payloadLen)
     }
 
     // ---------------------------------------------------------------------------

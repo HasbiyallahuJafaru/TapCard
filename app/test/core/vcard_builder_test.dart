@@ -34,6 +34,7 @@ void main() {
         company: 'TapCard',
         jobTitle: 'Founder',
         note: 'Connect on LinkedIn',
+        linkedIn: 'https://linkedin.com/in/hasbiyallahu',
       );
 
       final vCard = VCardBuilder.build(card);
@@ -47,8 +48,27 @@ void main() {
         'TEL;TYPE=CELL:+234XXXXXXXXXX\r\n'
         'EMAIL:hello@tapcard.app\r\n'
         'NOTE:Connect on LinkedIn\r\n'
+        'URL;TYPE=LinkedIn:https://linkedin.com/in/hasbiyallahu\r\n'
         'END:VCARD\r\n',
       ));
+    });
+
+    test('linkedIn URL included when provided', () {
+      final card = ContactCard(
+        fullName: 'Alice',
+        cellPhone: '+1',
+        linkedIn: 'https://linkedin.com/in/alice',
+      );
+      final vCard = VCardBuilder.build(card);
+      expect(vCard.contains('URL;TYPE=LinkedIn:https://linkedin.com/in/alice\r\n'), isTrue);
+    });
+
+    test('linkedIn omitted when null or empty', () {
+      final card = ContactCard(fullName: 'Alice', cellPhone: '+1');
+      expect(VCardBuilder.build(card).contains('URL'), isFalse);
+
+      final cardEmpty = ContactCard(fullName: 'Alice', cellPhone: '+1', linkedIn: '   ');
+      expect(VCardBuilder.build(cardEmpty).contains('URL'), isFalse);
     });
 
     test('optional fields omitted when null', () {
@@ -67,6 +87,7 @@ void main() {
       expect(vCard.contains('TITLE:'), isFalse);
       expect(vCard.contains('EMAIL:'), isFalse);
       expect(vCard.contains('NOTE:'), isFalse);
+      expect(vCard.contains('URL'), isFalse);
     });
 
     test('optional fields omitted when empty string', () {
@@ -77,6 +98,7 @@ void main() {
         company: '   ',
         jobTitle: '',
         note: '   ',
+        linkedIn: '   ',
       );
 
       final vCard = VCardBuilder.build(card);
@@ -85,6 +107,7 @@ void main() {
       expect(vCard.contains('TITLE:'), isFalse);
       expect(vCard.contains('EMAIL:'), isFalse);
       expect(vCard.contains('NOTE:'), isFalse);
+      expect(vCard.contains('URL'), isFalse);
     });
 
     test('throws ArgumentError for empty fullName', () {

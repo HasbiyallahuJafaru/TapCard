@@ -105,13 +105,13 @@ class NfcChannel {
     }
   }
 
-  /// Stores the NDEF share URL payload. Must be called before [arm].
+  /// Stores the vCard payload for HCE. Must be called before [arm].
   ///
-  /// [url] must start with `https://` and be at most 1200 characters.
+  /// [vCard] — raw vCard 3.0 string from [VCardBuilder.build].
   /// Throws [TapCardNfcException] on validation failure.
-  Future<void> setPayload(String url) async {
+  Future<void> setPayload(String vCard) async {
     try {
-      await _channel.invokeMethod<bool>('setPayload', {'url': url});
+      await _channel.invokeMethod<bool>('setPayload', {'vcard': vCard});
     } on PlatformException catch (e) {
       if (kDebugMode) debugPrint('[NfcChannel] setPayload error: ${e.code}');
       throw TapCardNfcException(code: _mapCode(e.code), message: e.message ?? '');

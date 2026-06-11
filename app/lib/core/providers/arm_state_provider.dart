@@ -92,18 +92,18 @@ class ArmStateNotifier extends StateNotifier<ArmStateData> {
 
   // ─── Public API ─────────────────────────────────────────────────────────────
 
-  /// Sets the NDEF payload and arms the HCE service.
+  /// Sets the vCard payload and arms the HCE service.
   ///
-  /// [shareUrl] — the full `https://…/#…` URL (already encoded by [UrlCodec]).
+  /// [vCard] — raw vCard 3.0 string from [VCardBuilder.build].
   ///
   /// Updates state to [TapSharePhase.armed] on success, or writes
   /// [ArmStateData.errorMessage] on failure without changing [phase].
-  Future<void> arm(String shareUrl) async {
+  Future<void> arm(String vCard) async {
     _cancelTimers();
     state = state.copyWith(clearError: true);
 
     try {
-      await _nfc.setPayload(shareUrl);
+      await _nfc.setPayload(vCard);
       await _nfc.arm(timeoutSec: AppConstants.armTimeoutSec);
 
       state = ArmStateData(

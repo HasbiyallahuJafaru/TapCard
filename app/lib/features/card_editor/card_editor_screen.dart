@@ -41,6 +41,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   late final TextEditingController _companyCtrl;
   late final TextEditingController _titleCtrl;
   late final TextEditingController _noteCtrl;
+  late final TextEditingController _linkedInCtrl;
 
   int _encodedLength = 0;
   bool _saving = false;
@@ -49,15 +50,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
   void initState() {
     super.initState();
     final existing = ref.read(contactCardProvider);
-    _nameCtrl    = TextEditingController(text: existing?.fullName ?? '');
-    _phoneCtrl   = TextEditingController(text: existing?.cellPhone ?? '');
-    _emailCtrl   = TextEditingController(text: existing?.email ?? '');
-    _companyCtrl = TextEditingController(text: existing?.company ?? '');
-    _titleCtrl   = TextEditingController(text: existing?.jobTitle ?? '');
-    _noteCtrl    = TextEditingController(text: existing?.note ?? '');
+    _nameCtrl     = TextEditingController(text: existing?.fullName ?? '');
+    _phoneCtrl    = TextEditingController(text: existing?.cellPhone ?? '');
+    _emailCtrl    = TextEditingController(text: existing?.email ?? '');
+    _companyCtrl  = TextEditingController(text: existing?.company ?? '');
+    _titleCtrl    = TextEditingController(text: existing?.jobTitle ?? '');
+    _noteCtrl     = TextEditingController(text: existing?.note ?? '');
+    _linkedInCtrl = TextEditingController(text: existing?.linkedIn ?? '');
 
     // Start listening for live URL length updates.
-    for (final c in [_nameCtrl, _phoneCtrl, _emailCtrl, _companyCtrl, _titleCtrl, _noteCtrl]) {
+    for (final c in [_nameCtrl, _phoneCtrl, _emailCtrl, _companyCtrl, _titleCtrl, _noteCtrl, _linkedInCtrl]) {
       c.addListener(_updateLength);
     }
     _updateLength();
@@ -65,7 +67,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
 
   @override
   void dispose() {
-    for (final c in [_nameCtrl, _phoneCtrl, _emailCtrl, _companyCtrl, _titleCtrl, _noteCtrl]) {
+    for (final c in [_nameCtrl, _phoneCtrl, _emailCtrl, _companyCtrl, _titleCtrl, _noteCtrl, _linkedInCtrl]) {
       c.removeListener(_updateLength);
       c.dispose();
     }
@@ -97,6 +99,7 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
       company:   _companyCtrl.text.trim().isEmpty ? null : _companyCtrl.text.trim(),
       jobTitle:  _titleCtrl.text.trim().isEmpty ? null : _titleCtrl.text.trim(),
       note:      _noteCtrl.text.trim().isEmpty ? null : _noteCtrl.text.trim(),
+      linkedIn:  _linkedInCtrl.text.trim().isEmpty ? null : _linkedInCtrl.text.trim(),
     );
   }
 
@@ -185,9 +188,16 @@ class _CardEditorScreenState extends ConsumerState<CardEditorScreen> {
                       _Field(
                         controller: _noteCtrl,
                         label: 'Note',
-                        textInputAction: TextInputAction.done,
+                        textInputAction: TextInputAction.next,
                         maxLines: 3,
                         delay: 200,
+                      ),
+                      _Field(
+                        controller: _linkedInCtrl,
+                        label: 'LinkedIn URL',
+                        keyboardType: TextInputType.url,
+                        textInputAction: TextInputAction.done,
+                        delay: 240,
                       ),
                       const SizedBox(height: AppTokens.xl),
                     ],

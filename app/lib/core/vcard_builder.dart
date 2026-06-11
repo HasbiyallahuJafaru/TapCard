@@ -69,6 +69,11 @@ abstract final class VCardBuilder {
       buffer.write('NOTE:${_escape(note)}\r\n');
     }
 
+    final linkedIn = card.linkedIn?.trim();
+    if (linkedIn != null && linkedIn.isNotEmpty) {
+      buffer.write('URL;TYPE=LinkedIn:${_escape(linkedIn)}\r\n');
+    }
+
     buffer.write('END:VCARD\r\n');
 
     return buffer.toString();

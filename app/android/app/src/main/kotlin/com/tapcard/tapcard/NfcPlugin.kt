@@ -21,8 +21,8 @@ class NfcPlugin(private val context: Context) : MethodChannel.MethodCallHandler 
         const val CHANNEL_NAME    = "tapcard/nfc"
         const val CHANNEL_VERSION = 1
 
-        // Payload length guard — mirrors url_codec.dart's 1200-char limit
-        private const val MAX_URL_LENGTH = 1_200
+        // vCard payload length guard (UTF-8 bytes) — typical vCard is well under 2KB
+        private const val MAX_VCARD_BYTES = 4_096
 
         // arm() timeout clamp bounds (seconds)
         private const val ARM_TIMEOUT_MIN_SEC = 10
@@ -51,25 +51,26 @@ class NfcPlugin(private val context: Context) : MethodChannel.MethodCallHandler 
     }
 
     /**
-     * Stores the NDEF URL payload in SharedPreferences.
+     * Stores the vCard payload in SharedPreferences.
      * Does NOT arm sharing — call [arm] separately.
      *
-     * @throws INVALID_URL if url is blank or does not start with "https://"
-     * @throws PAYLOAD_TOO_LONG if url exceeds 1200 characters
+     * @throws INVALID_URL if vcard is blank
+     * @throws PAYLOAD_TOO_LONG if vcard exceeds MAX_VCARD_BYTES bytes (UTF-8)
      */
     private fun handleSetPayload(call: MethodCall, result: Result) {
-        val url = call.argument<String>("url")
-        if (url.isNullOrBlank() || !url.startsWith("https://")) {
-            result.error(ERR_INVALID_URL, "URL must start with https://", null)
+        val vCard = call.argument<String>("vcard")
+        if (vCard.isNullOrBlank()) {
+            result.error(ERR_INVALID_URL, "vcard must not be blank", null)
             return
         }
-        if (url.length > MAX_URL_LENGTH) {
-            result.error(ERR_PAYLOAD_TOO_LONG, "URL exceeds $MAX_URL_LENGTH characters", null)
+        val byteLen = vCard.toByteArray(Charsets.UTF_8).size
+        if (byteLen > MAX_VCARD_BYTES) {
+            result.error(ERR_PAYLOAD_TOO_LONG, "vCard exceeds $MAX_VCARD_BYTES bytes", null)
             return
         }
 
         val prefs = context.getSharedPreferences(NdefHostApduService.PREFS_NAME, Context.MODE_PRIVATE)
-        val written = prefs.edit().putString(NdefHostApduService.KEY_NDEF_URL, url).commit()
+        val written = prefs.edit().putString(NdefHostApduService.KEY_NDEF_URL, vCard).commit()
         result.success(written)
     }
 

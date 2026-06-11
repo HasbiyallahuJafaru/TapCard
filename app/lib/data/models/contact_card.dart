@@ -30,6 +30,7 @@ class ContactCard {
     this.jobTitle,
     this.note,
     this.photoPath,
+    this.linkedIn,
   });
 
   /// Full display name — maps to vCard FN field.
@@ -54,6 +55,9 @@ class ContactCard {
   /// Never included in the share URL — app-side display only.
   final String? photoPath;
 
+  /// LinkedIn profile URL — maps to vCard URL property (optional).
+  final String? linkedIn;
+
   /// Returns a copy of this card with any provided fields replaced.
   ContactCard copyWith({
     String? fullName,
@@ -63,11 +67,13 @@ class ContactCard {
     String? jobTitle,
     String? note,
     String? photoPath,
+    String? linkedIn,
     bool clearEmail = false,
     bool clearCompany = false,
     bool clearJobTitle = false,
     bool clearNote = false,
     bool clearPhotoPath = false,
+    bool clearLinkedIn = false,
   }) {
     return ContactCard(
       fullName: fullName ?? this.fullName,
@@ -77,6 +83,7 @@ class ContactCard {
       jobTitle: clearJobTitle ? null : (jobTitle ?? this.jobTitle),
       note: clearNote ? null : (note ?? this.note),
       photoPath: clearPhotoPath ? null : (photoPath ?? this.photoPath),
+      linkedIn: clearLinkedIn ? null : (linkedIn ?? this.linkedIn),
     );
   }
 
@@ -93,7 +100,8 @@ class ContactCard {
         other.company == company &&
         other.jobTitle == jobTitle &&
         other.note == note &&
-        other.photoPath == photoPath;
+        other.photoPath == photoPath &&
+        other.linkedIn == linkedIn;
   }
 
   @override
@@ -105,6 +113,7 @@ class ContactCard {
         jobTitle,
         note,
         photoPath,
+        linkedIn,
       );
 }
 
@@ -121,6 +130,7 @@ class ContactCard {
 ///   4 → jobTitle
 ///   5 → note
 ///   6 → photoPath
+///   7 → linkedIn
 class ContactCardAdapter extends TypeAdapter<ContactCard> {
   @override
   final int typeId = _kContactCardTypeId;
@@ -140,13 +150,14 @@ class ContactCardAdapter extends TypeAdapter<ContactCard> {
       jobTitle: fields[4] as String?,
       note: fields[5] as String?,
       photoPath: fields[6] as String?,
+      linkedIn: fields[7] as String?,
     );
   }
 
   @override
   void write(BinaryWriter writer, ContactCard obj) {
     writer
-      ..writeByte(7) // total field count
+      ..writeByte(8) // total field count
       ..writeByte(0)
       ..write(obj.fullName)
       ..writeByte(1)
@@ -160,7 +171,9 @@ class ContactCardAdapter extends TypeAdapter<ContactCard> {
       ..writeByte(5)
       ..write(obj.note)
       ..writeByte(6)
-      ..write(obj.photoPath);
+      ..write(obj.photoPath)
+      ..writeByte(7)
+      ..write(obj.linkedIn);
   }
 
   @override
