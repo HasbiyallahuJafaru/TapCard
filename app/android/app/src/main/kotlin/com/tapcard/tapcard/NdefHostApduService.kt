@@ -14,6 +14,7 @@ import android.nfc.cardemulation.HostApduService
 import android.os.Bundle
 import android.util.Log
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.glance.appwidget.GlanceAppWidgetManager
 import com.tapcard.tapcard.widget.TapCardWidget
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -84,7 +85,10 @@ class NdefHostApduService : HostApduService() {
                     .apply()
                 // Refresh the home-screen widget
                 CoroutineScope(Dispatchers.Main).launch {
-                    TapCardWidget().updateAll(this@NdefHostApduService)
+                    val manager = GlanceAppWidgetManager(this@NdefHostApduService)
+                    manager.getGlanceIds(TapCardWidget::class.java).forEach { id ->
+                        TapCardWidget().update(this@NdefHostApduService, id)
+                    }
                 }
                 // Notify Flutter app if in foreground
                 LocalBroadcastManager.getInstance(this)
